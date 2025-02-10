@@ -26,6 +26,14 @@ ament_target_dependencies(my_publisher
     OpenCV
 )
 
+add_executable(my_scaled_publisher src/my_scaled_publisher.cpp)
+ament_target_dependencies(my_scaled_publisher 
+    rclcpp 
+    cv_bridge 
+    sensor_msgs 
+    OpenCV
+)
+
 add_executable(my_camera_publisher src/my_camera_publisher.cpp)
 ament_target_dependencies(my_camera_publisher 
     rclcpp 
@@ -50,6 +58,7 @@ install(TARGETS
   my_publisher
   my_camera_publisher
   my_subscriber
+  my_scaled_publisher
   DESTINATION lib/${PROJECT_NAME}
 )
 install(PROGRAMS
