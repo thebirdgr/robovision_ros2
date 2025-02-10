@@ -25,6 +25,7 @@ public:
         }
 
         image_publisher_ = this->create_publisher<sensor_msgs::msg::Image>("camera/image", 10);
+        scaled_image_publisher_ = this->create_publisher<sensor_msgs::msg::Image>("camera/scaled_image", 10);
 
         image_timer_ = this->create_wall_timer(std::chrono::milliseconds(30),
                                                std::bind(&CameraPublisherNode::publish_image, this));
@@ -37,12 +38,19 @@ private:
     cv::VideoCapture capture_;
 
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr scaled_image_publisher_;
+
     rclcpp::TimerBase::SharedPtr image_timer_;
 
     void publish_image()
     {
         cv::Mat cv_image;
         capture_ >> cv_image; // Capture an image frame
+
+        // Scaling the Image
+        cv::Mat scaled_image;
+        cv::resize(cv_image, scaled_image, cv::Size(), 0.5, 0.5, CV_INTER_AREA);
+
 
         if (cv_image.empty())
         {
@@ -52,8 +60,13 @@ private:
 
         //Convert the output data into a ROS message format
         sensor_msgs::msg::Image::SharedPtr image_msg_;
+        sensor_msgs::msg::Image::SharedPtr scaled_image_msg_;
+
 	    image_msg_ = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", cv_image).toImageMsg();
+        scaled_image_msg_ = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", scaled_image).toImageMsg();
+        
         image_publisher_->publish(*image_msg_);
+        scaled_image_publisher_->publish(*scaled_image_msg_);
     }
 };
 
