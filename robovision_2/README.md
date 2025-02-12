@@ -243,6 +243,8 @@ The expected output is
 
 * What is the scope of your grayscale image variables? Do you need to make them global? Why?
 
+* Yes, the variable has to be global if not the pointer will be deleted and created each time
+
 ## 2.3.2 Color Thresholding
 
 Now we will create a very basic color segmentator. For simplicity, we will use the BGR color space, but it is more common to use the HSV color space; we let the interested reader to find what are the extra steps to use an HSV image for color segmentation.
