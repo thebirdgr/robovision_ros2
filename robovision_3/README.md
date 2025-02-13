@@ -277,6 +277,19 @@ You should be able to see the same information being published in our ROS topic!
 
 * What's the 3D information for point (row_id=0, col_id=0)? Please note that, when the information is not available for a given point due to the structured light reflection properties, the system returns 'nan' values. In Python you can check if a variable is `nan` with the `math.isnan()` function in the `math` library -- this function returns a `True` or `False` value. You can validate your data using the `if ( not math.isnan(( self.point_cloud_[row_id, col_id, 0][0] ) ):` structure, for example. Similarly, in C++ we have `std::isnan()`.
 
+# ANS
+The coordinate frame typically follows ROS conventions where:
+
+X points to the right
+Y points down
+Z points forward (depth)
+
+
+Quaternions represent rotation in 3D space and are preferred over Euler angles because they avoid gimbal lock issues.
+For a depth camera:
+
+The origin (0,0,0) is usually at the camera's optical center
+Z values increase as objects get farther from the camera
 # 3. Final project
 
 Now you have all the tools to program a nice robot vision project.
