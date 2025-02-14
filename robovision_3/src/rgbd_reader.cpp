@@ -130,14 +130,22 @@ private:
             // Access a point in the point_cloud (e.g., midpoint of the matrix)
             int rows = point_cloud_.rows;
             int cols = point_cloud_.cols;
-            int row_id = rows / 2;
-            int col_id = cols / 2;
+            // int row_id = rows / 2;
+            // int col_id = cols / 2;
 
+            std::random_device rd; // obtain a random number from hardware
+            std::mt19937 gen(rd()); // seed the generator
+            std::uniform_int_distribution<> distr(0, rows); // define the range
+
+            for(int j = 0; j < 5; j++)
+            {
+                int i = distr(gen);
+                int k = distr(gen);
             // Ensure the indices are within valid bounds
-            if (row_id >= 0 && row_id < rows && col_id >= 0 && col_id < cols) 
+                if (i >= 0 && i < rows && k >= 0 && k < cols) 
             {
                 // Extract the point at the specified location (row_id, col_id)
-                cv::Vec4f point = point_cloud_.at<cv::Vec4f>(row_id, col_id);
+                    cv::Vec4f point = point_cloud_.at<cv::Vec4f>(i, k);
 
                 // Assign the extracted point's coordinates to centroid_
                 geometry_msgs::msg::Pose centroid;
@@ -152,7 +160,7 @@ private:
                 centroid.orientation.z = 0.0;
                 centroid.orientation.w = 1.0;
 
-                RCLCPP_INFO(this->get_logger(), "Central point: x=%.3f, y=%.3f, z=%.3f", point[0], point[1], point[2]);
+                    // RCLCPP_INFO(this->get_logger(), "Central point : x=%.3f, y=%.3f, z=%.3f", i, point[0], point[1], point[2]);
 
                 // Publish the centroid pose
                 centroid_publisher_->publish(centroid);
@@ -160,6 +168,7 @@ private:
             else 
             {
                 RCLCPP_WARN(this->get_logger(), "PointCloud index out of bounds");
+                }
             }
 
             if (display_) 
