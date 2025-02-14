@@ -7,11 +7,13 @@
 
 #include <cv_bridge/cv_bridge.hpp>
 #include <opencv2/opencv.hpp>
+#include <opencv2/objdetect.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 
 #include <iostream>
 #include <vector>
 #include <exception>
+#include <random>
 
 class PointCloudCentroidNode : public rclcpp::Node
 {
@@ -38,7 +40,7 @@ public:
         // Processing
         processing_timer_ = this->create_wall_timer(
             std::chrono::milliseconds(30),
-            std::bind(&PointCloudCentroidNode::point_cloud_processing, this));
+            std::bind(&PointCloudCentroidNode::trackHumanPoint, this));
 
         RCLCPP_INFO(this->get_logger(), "Starting point_cloud_centroid application in cpp...");
     }
@@ -48,6 +50,21 @@ private:
     bool is_ptcld_;
     bool display_;
     cv::Mat rgb_, depth_, depth_mat_, point_cloud_;
+    cv::CascadeClassifier face_cascade;
+    bool check_ = face_cascade.load(cv::samples::findFile("/home/thebird/anaconda3/envs/robovision/lib/python3.12/site-packages/cv2/data/haarcascade_frontalface_alt.xml"));
+
+    cv::Mat frame_gray;
+    std::vector<cv::Rect> faces;
+    cv::Point center;
+
+    // void detectFaces() {
+    //     if(!check_)
+    //     {
+    //         std::cout << "--(!)Error loading face cascade\n";
+    //     };
+    // }
+
+    // std::string face_cascade_name = cv::samples::findFile("/home/thebird/anaconda3/envs/robovision/lib/python3.12/site-packages/cv2/data/haarcascade_frontalface_alt.xml");
 
     rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr centroid_publisher_;
 
@@ -57,6 +74,71 @@ private:
 
     rclcpp::TimerBase::SharedPtr processing_timer_;
 
+    void detectAndDisplay( cv::Mat frame_ )
+    {
+        if( frame_.empty() )
+        {
+            return;
+        }
+        // detectFaces();
+        cv::cvtColor( frame_, frame_gray, cv::COLOR_BGR2GRAY );
+        cv::equalizeHist( frame_gray, frame_gray );
+        //-- Detect faces
+        face_cascade.detectMultiScale( frame_gray, faces );
+
+        for ( size_t i = 0; i < faces.size(); i++ )
+        {
+            center = cv::Point( faces[i].x + faces[i].width/2,
+                        faces[i].y + faces[i].height/2 );
+            RCLCPP_INFO(this->get_logger(), "Central point : x=%d, y=%d", center.x,
+                center.y);
+
+        }
+    }
+
+    void trackHumanPoint()
+    {
+        detectAndDisplay(rgb_);
+        if(std::isnan(center.x) || std::isnan(center.y)){
+            RCLCPP_INFO(this->get_logger(), "Nan Values");
+        }
+        if (is_ptcld_) 
+        {
+
+            // Extract the point at the specified location (row_id, col_id)
+            cv::Vec4f point = point_cloud_.at<cv::Vec4f>(center.x, center.y);
+
+            // Assign the extracted point's coordinates to centroid_
+            geometry_msgs::msg::Pose centroid;
+
+            centroid.position.x = static_cast<float>(point[0]); // x
+            centroid.position.y = static_cast<float>(point[1]); // y
+            centroid.position.z = static_cast<float>(point[2]); // z
+
+            // Set a default orientation
+            centroid.orientation.x = 0.0;
+            centroid.orientation.y = 0.0;
+            centroid.orientation.z = 0.0;
+            centroid.orientation.w = 1.0;
+
+            RCLCPP_INFO(this->get_logger(), "Human Central point : x=%.3f, y=%.3f, z=%.3f", point[0], point[1], point[2]);
+
+            // Publish the centroid pose
+            centroid_publisher_->publish(centroid);
+        } 
+
+        if (display_) 
+        {
+            cv::imshow("RGB Image", rgb_);
+            // cv::imshow("Depth Image", depth_);
+            cv::waitKey(1);
+        }
+        else 
+        {
+            RCLCPP_WARN(this->get_logger(), "Empty point cloud matrix.");
+        }
+    }
+
     void callback_rgb_rect(const sensor_msgs::msg::Image::SharedPtr msg) 
     {
         try 
@@ -64,6 +146,7 @@ private:
             cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, msg->encoding);
             rgb_ = cv_ptr->image.clone();
             cv::cvtColor(rgb_, rgb_, cv::COLOR_RGB2BGR);
+            // detectAndDisplay(rgb_);
         } 
         catch (const std::exception &e) 
         {
@@ -141,33 +224,33 @@ private:
             {
                 int i = distr(gen);
                 int k = distr(gen);
-            // Ensure the indices are within valid bounds
+                // Ensure the indices are within valid bounds
                 if (i >= 0 && i < rows && k >= 0 && k < cols) 
-            {
-                // Extract the point at the specified location (row_id, col_id)
+                {
+                    // Extract the point at the specified location (row_id, col_id)
                     cv::Vec4f point = point_cloud_.at<cv::Vec4f>(i, k);
 
-                // Assign the extracted point's coordinates to centroid_
-                geometry_msgs::msg::Pose centroid;
+                    // Assign the extracted point's coordinates to centroid_
+                    geometry_msgs::msg::Pose centroid;
 
-                centroid.position.x = static_cast<float>(point[0]); // x
-                centroid.position.y = static_cast<float>(point[1]); // y
-                centroid.position.z = static_cast<float>(point[2]); // z
+                    centroid.position.x = static_cast<float>(point[0]); // x
+                    centroid.position.y = static_cast<float>(point[1]); // y
+                    centroid.position.z = static_cast<float>(point[2]); // z
 
-                // Set a default orientation
-                centroid.orientation.x = 0.0;
-                centroid.orientation.y = 0.0;
-                centroid.orientation.z = 0.0;
-                centroid.orientation.w = 1.0;
+                    // Set a default orientation
+                    centroid.orientation.x = 0.0;
+                    centroid.orientation.y = 0.0;
+                    centroid.orientation.z = 0.0;
+                    centroid.orientation.w = 1.0;
 
                     // RCLCPP_INFO(this->get_logger(), "Central point : x=%.3f, y=%.3f, z=%.3f", i, point[0], point[1], point[2]);
 
-                // Publish the centroid pose
-                centroid_publisher_->publish(centroid);
-            } 
-            else 
-            {
-                RCLCPP_WARN(this->get_logger(), "PointCloud index out of bounds");
+                    // Publish the centroid pose
+                    centroid_publisher_->publish(centroid);
+                } 
+                else 
+                {
+                    RCLCPP_WARN(this->get_logger(), "PointCloud index out of bounds");
                 }
             }
 
